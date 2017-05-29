@@ -2,7 +2,7 @@
 <div class="login" id="login">
     <a href="javascript:;" class="log-close"></a>
     <div class="log-bg">
-        <div class="log-logo">Welcome!</div>
+        <div class="log-logo">Login!</div>
     </div>
     <div class="log-email">
         <input type="text" placeholder="Email" :class="'log-input' + (account==''?' log-input-empty':'')" v-model="account"><input type="password" placeholder="Password" :class="'log-input' + (password==''?' log-input-empty':'')"  v-model="password">
@@ -34,22 +34,25 @@ export default {
       }
     },
     toLogin () {
-      let loginParam = {
-        Email: this.account,
-        Password: this.password
-      }
       // 设置在登录状态
       this.isLoging = true
       // 请求后端,比如:
       let apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/session'
-      this.$http.post(apiurl, {param: loginParam}).then((response) => {
-        if (response.data.UserID !== 0) {
-          let expireDays = 1000 * 60 * 60 * 24 * 15
-          this.setCookie('session', response.data.SessionID, expireDays)
+      this.$http.post(apiurl, {Email: this.account, Password: this.password}, {timeout: 3000}).then(res => {
+        if (res.body.hasOwnProperty('Error')) {
+          console.log(res.body)
           this.isLoging = false
-          this.$router.push('/user_info')
+          return
+        } else {
+          console.log('success')
         }
-      }, (response) => {
+        console.log(res.body)
+        global.SessionID = res.body.SessionID
+        console.log(global.SessionID)
+        this.isLoging = false
+        this.$router.push('/register/')
+      }, res => {
+        console.log('http post error')
       })
     }
   }
