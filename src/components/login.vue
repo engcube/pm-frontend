@@ -49,8 +49,10 @@ export default {
         console.log(res.body)
         global.SessionID = res.body.SessionID
         console.log(global.SessionID)
+        this.$cookie.set('session', global.SessionID, {expires: 1})
+        this.$cookie.set('userid', global.UserID, {expires: 1})
         this.isLoging = false
-        this.$router.push('/register/')
+        this.$router.push('/chat/')
       }, res => {
         console.log('http post error')
       })

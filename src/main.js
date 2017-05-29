@@ -2,6 +2,7 @@ import Vue from 'vue'
 import App from './App.vue'
 import VueRouter from 'vue-router'
 import VueResource from 'vue-resource'
+import VueCookie from 'vue-cookie'
 import './global'
 
 // 开启debug模式
@@ -9,10 +10,12 @@ Vue.config.debug = true
 
 Vue.use(VueRouter)
 Vue.use(VueResource)
+Vue.use(VueCookie)
 
 import login from './components/login.vue'
 import register from './components/register.vue'
 import page404 from './components/page404.vue'
+import chat from './components/chat.vue'
 
 // 创建一个路由器实例
 // 并且配置路由规则
@@ -33,10 +36,36 @@ const router = new VueRouter({
       component: register
     },
     {
+      path: '/chat',
+      component: chat
+    },
+    {
       path: '/*',
       component: page404
     }
   ]
+})
+
+router.beforeEach((to, from, next) => {
+  console.log(to.path)
+  var session = global.SessionID
+  if (session === '') {
+    session = VueCookie.get('session')
+  }
+  console.log(session)
+  if (session === '') {
+    if (to.path !== '/login') {
+      return next({path: '/login'})
+    } else {
+      next()
+    }
+  } else {
+    if (to.path === '/login') {
+      return next({path: '/'})
+    } else {
+      next()
+    }
+  }
 })
 
 /* eslint-disable no-new */

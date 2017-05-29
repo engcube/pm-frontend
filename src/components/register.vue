@@ -51,7 +51,7 @@ export default {
         global.UserID = res.body.UserID
         console.log(global.UserID)
         this.isLoging = false
-        this.$router.push('/login/')
+        this.$router.push('/chat/')
       }, res => {
         console.log('http post error')
       })
