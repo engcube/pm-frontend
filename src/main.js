@@ -46,25 +46,29 @@ const router = new VueRouter({
   ]
 })
 
+Vue.http.interceptors.push((request, next) => {
+  request.headers.set('Authorization', 'Bearer ' + global.SessionID)
+  next()
+})
+
 router.beforeEach((to, from, next) => {
   console.log(to.path)
   var session = global.SessionID
   if (session === '') {
     session = VueCookie.get('session')
+    global.SessionID = session
   }
   console.log(session)
-  if (session === '') {
-    if (to.path !== '/login') {
-      return next({path: '/login'})
-    } else {
+  if (session == null || session === '') {
+    if (to.path === '/login') {
       next()
+    } else if (to.path === '/register') {
+      next()
+    } else {
+      return next({path: '/login'})
     }
   } else {
-    if (to.path === '/login') {
-      return next({path: '/'})
-    } else {
-      next()
-    }
+    next()
   }
 })
 

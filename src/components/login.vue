@@ -24,6 +24,12 @@ export default {
       password: ''
     }
   },
+  created: function () {
+    global.SessionID = ''
+    global.UserID = ''
+    this.$cookie.set('userid', global.UserID, {expires: 1})
+    this.$cookie.set('session', global.SessionID, {expires: 1})
+  },
   components: {
     Loading
   },

@@ -7,19 +7,29 @@
       </div>
       <!-- =============================================================== -->
       <!-- member list -->
-      <ul class="friend-list" v-for="friend in friends">
-        <li>
+      <ul class="friend-list" v-for="f in friends">
+        <li :class="{ 'active bounceInDown': f.UserID == friend.UserID }" >
           <a href="#" class="clearfix">
-            <img :src="friend.Avatar" alt="" class="img-circle">
-            <div class="friend-name">
-              <strong>{{ friend.Username }}</strong>
+            <img :src="f.Avatar" alt="" class="img-circle" @click="showMsg(f)">
+            <div class="friend-name" @click="showMsg(f)">
+              <strong>{{ f.Username }}</strong>
             </div>
-            <div class="last-message text-muted">{{ friend.LastMessage }}</div>
-            <small class="time text-muted">{{ friend.LastMessageTime }}</small>
-            <small class="chat-alert label label-danger" v-if=" friend.UnreadCount > 0">{{ friend.UnreadCount }}</small>
+            <small class="chat-alert label label-danger" v-if=" f.UnreadCount > 0">{{ f.UnreadCount }}</small>
+            <div>
+            <span class="btn remove_fields pull-right" @click="deleteFriend(f)"><i class="icon-trash icon-white"></i> Delete</span>
+            </div>
           </a>
         </li>
       </ul>
+    <div class="add-box bg-white">
+      <div class="input-group">
+        <input class="form-control border no-shadow no-rounded" placeholder="Add Friend Email Here" v-model="email">
+        <span class="input-group-btn">
+        <button class="btn btn-success no-rounded" type="button" v-on:click="newFriend">添加</button>
+        </span>
+      </div>
+    </div>
+
     </div>
     <!--=========================================================-->
     <!-- selected chat -->
@@ -37,6 +47,7 @@
                       <small class="pull-right text-muted"><i class="fa fa-clock-o"></i>{{ message.InsertTime }}</small>
                    </div>
                    <p>{{ message.Content }}</p>
+                  <span class="btn remove_fields pull-right" @click="deleteMessage(message)" v-if=" message.Sender === self.UserID "><i class="icon-trash icon-white"></i> Delete</span>
                 </div>
             </li>
             </div>
@@ -59,9 +70,9 @@
     </div>
     <div class="chat-box bg-white">
       <div class="input-group">
-        <input class="form-control border no-shadow no-rounded" placeholder="Type your message here">
+        <input class="form-control border no-shadow no-rounded" placeholder="Type your message here" v-model="messageContent">
         <span class="input-group-btn">
-        <button class="btn btn-success no-rounded" type="button">Send</button>
+        <button class="btn btn-success no-rounded" type="button" v-on:click="newMessage">Send</button>
         </span>
       </div>
     </div>
@@ -75,21 +86,221 @@ export default {
   name: 'chat',
   data () {
     return {
-      friends: [
-        {Username: 'zpc', Avatar: 'http://p.sootoo.com/son_media/msg/2014/09/02/652581.jpeg', LastMessage: 'nono', LastMessageTime: '11:00', UnreadCount: 2, UserID: 1},
-        {Username: 'wzy', Avatar: 'http://square.b0.upaiyun.com/2013/09/17/Ekd8I2gM.jpg', LastMessage: 'nadsono', LastMessageTime: '', UnreadCount: 0, UserID: 2}
-      ],
-      self: {Username: 'zeng', Avatar: 'http://square.b0.upaiyun.com/2013/09/17/Ekd8I2gM.jpg', UserID: 123},
-      friend: {Username: 'wang', Avatar: 'http://p.sootoo.com/son_media/msg/2014/09/02/652581.jpeg', UserID: 133},
-      messages: [
-        {MessageID: 12, Content: 'aaabbb', Sender: 123, Receiver: 133, InsertTime: 1333},
-        {MessageID: 13, Content: 'aaabbbad', Sender: 133, Receiver: 123, InsertTime: 13334},
-        {MessageID: 14, Content: '---', Sender: 133, Receiver: 123, InsertTime: 133345},
-        {MessageID: 15, Content: '-**--', Sender: 123, Receiver: 133, InsertTime: 133346}
-      ]
+      email: '',
+      messageContent: '',
+      friends: [],
+      self: {},
+      friend: {},
+      messages: []
+      // {MessageID: 12, Content: 'aaabbb', Sender: 123, Receiver: 133, InsertTime: 1333},
     }
   },
+  created: function () {
+    this.initData()
+  },
   methods: {
+    initData () {
+      this.friend = {}
+      let apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/user'
+      this.$http.get(apiurl, {timeout: 3000}).then(res => {
+        if (res.body.hasOwnProperty('Error')) {
+          console.log(res.body.Error)
+          return
+        }
+        this.self.Username = res.body.Username
+        this.self.Avatar = global.User1Avatar
+        this.self.UserID = res.body.UserID
+        apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/friend'
+        this.$http.get(apiurl, {timeout: 3000}).then(res => {
+          if (res.body.hasOwnProperty('Error')) {
+            console.log(res.body.Error)
+            return
+          }
+          let tmpFriends = []
+          for (var i = 0; i < res.body.length; i++) {
+            let friend = res.body[i]
+            let itime = ''
+            if (friend.LastMessage.InsertTime !== null) {
+              itime = (new Date(friend.LastMessage.InsertTime * 1000)).toISOString()
+            }
+            let fd = {Username: friend.Nickname, Avatar: global.Avatars[i % 2], LastMessage: friend.LastMessage.Content, LastMessageTime: itime, UnreadCount: friend.UnreadCount, UserID: friend.FriendUserID, FriendID: friend.FriendID, Email: friend.Email}
+            tmpFriends[i] = fd
+          }
+          this.friends = tmpFriends
+          if (this.friends.length > 0) {
+            this.friend = this.friends[0]
+            this.listMessages()
+          }
+        }, res => {
+          console.log('error')
+        })
+      }, res => {
+        console.log('error')
+      })
+    },
+    deleteMessage (message) {
+      console.log(message)
+      let apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/message'
+      this.$http.delete(apiurl, {body: {MessageID: message.MessageID}, timeout: 3000}).then(res => {
+        if (res.body.hasOwnProperty('Error')) {
+          console.log(res.body)
+          return
+        }
+        this.listMessages()
+      }, res => {
+        console.log('http post error')
+      })
+    },
+    showMsg (user) {
+      this.friend = user
+      this.messages = []
+      this.listMessages()
+      this.listFriends()
+    },
+    deleteFriend (user) {
+      console.log(user)
+      console.log(user.FriendID)
+      let apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/friend'
+      this.$http.delete(apiurl, {body: {FriendID: user.FriendID}, timeout: 3000}).then(res => {
+        if (res.body.hasOwnProperty('Error')) {
+          console.log(res.body)
+          return
+        }
+        this.listFriends()
+        if (this.friend.UserID === user.UserID) {
+          this.friend = {}
+          this.messages = []
+        }
+        this.listMessages()
+      }, res => {
+        console.log('http post error')
+      })
+    },
+    addFriend () {
+      let apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/friend'
+      this.$http.post(apiurl, {Email: this.email}, {timeout: 3000}).then(res => {
+        if (res.body.hasOwnProperty('Error')) {
+          console.log(res.body)
+          return
+        }
+        this.listFriends()
+      }, res => {
+        console.log('http post error')
+      })
+    },
+    sendMessage () {
+      let apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/message'
+      this.$http.post(apiurl, {RecieverEmail: this.friend.Email, Content: this.messageContent}, {timeout: 3000}).then(res => {
+        if (res.body.hasOwnProperty('Error')) {
+          console.log(res.body)
+          return
+        }
+        this.listMessages()
+      }, res => {
+        console.log('http post error')
+      })
+    },
+    newFriend () {
+      if (this.email !== '') {
+        this.addFriend()
+      }
+      this.email = ''
+    },
+    newMessage () {
+      if (this.messageContent !== '') {
+        this.sendMessage()
+      }
+      this.messageContent = ''
+    },
+    describeMyself () {
+      let apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/user'
+      this.$http.get(apiurl, {timeout: 3000}).then(res => {
+        if (res.body.hasOwnProperty('Error')) {
+          console.log(res.body.Error)
+          return
+        }
+        this.self.Username = res.body.Username
+        this.self.Avatar = global.User1Avatar
+        this.self.UserID = res.body.UserID
+      }, res => {
+        console.log('error')
+      })
+    },
+    listFriends () {
+      let apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/friend'
+      this.$http.get(apiurl, {timeout: 3000}).then(res => {
+        if (res.body.hasOwnProperty('Error')) {
+          console.log(res.body.Error)
+          return
+        }
+        let tmpFriends = []
+        for (var i = 0; i < res.body.length; i++) {
+          let friend = res.body[i]
+          let itime = ''
+          if (friend.LastMessage.InsertTime !== null) {
+            itime = (new Date(friend.LastMessage.InsertTime * 1000)).toISOString()
+          }
+          let fd = {Username: friend.Nickname, Avatar: global.Avatars[i % 2], LastMessage: friend.LastMessage.Content, LastMessageTime: itime, UnreadCount: friend.UnreadCount, UserID: friend.FriendUserID, FriendID: friend.FriendID, Email: friend.Email}
+          console.log(fd)
+          tmpFriends[i] = fd
+        }
+        this.friends = tmpFriends
+      }, res => {
+      })
+    },
+    listMessages () {
+      let apiurl = 'http://' + global.API_SERVER + '/api/' + global.API_VERSION + '/message/' + this.friend.UserID
+      this.$http.get(apiurl, {timeout: 3000}).then(res => {
+        if (res.body.hasOwnProperty('Error')) {
+          console.log(res.body.Error)
+          return
+        }
+        let tmpMessages = []
+        let i = 0
+        let j = 0
+        let k = 0
+        if (res.body.length === 0) {
+          return
+        }
+        let user = res.body[0]
+        let rmsgs = user.RecieveMsgs
+        let smsgs = user.SentMsgs
+        if (rmsgs === null) {
+          rmsgs = []
+        }
+        if (smsgs === null) {
+          smsgs = []
+        }
+        for (; i < rmsgs.length && j < smsgs.length;) {
+          let message = {}
+          if (rmsgs[i].InsertTime < smsgs[j].InsertTime) {
+            message = rmsgs[i]
+            i++
+          } else {
+            message = smsgs[j]
+            j++
+          }
+          let msg = {MessageID: message.MessageID, Content: message.Content, Sender: message.Sender, Reveiver: message.Receiver, InsertTime: (new Date(message.InsertTime * 1000)).toISOString()}
+          tmpMessages[k] = msg
+          k++
+        }
+        for (; i < rmsgs.length; i++) {
+          let message = rmsgs[i]
+          let msg = {MessageID: message.MessageID, Content: message.Content, Sender: message.Sender, Reveiver: message.Receiver, InsertTime: (new Date(message.InsertTime * 1000)).toISOString()}
+          tmpMessages[k] = msg
+          k++
+        }
+        for (; j < smsgs.length; j++) {
+          let message = smsgs[j]
+          let msg = {MessageID: message.MessageID, Content: message.Content, Sender: message.Sender, Reveiver: message.Receiver, InsertTime: (new Date(message.InsertTime * 1000)).toISOString()}
+          tmpMessages[k] = msg
+          k++
+        }
+        this.messages = tmpMessages
+      }, res => {
+        console.log('error')
+      })
+    }
   }
 }
 </script>
