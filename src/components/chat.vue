@@ -7,7 +7,7 @@
       </div>
       <!-- =============================================================== -->
       <!-- member list -->
-      <ul class="friend-list" v-for="f in friends">
+      <ul class="friend-list" v-for="f in orderedFriends">
         <li :class="{ 'active bounceInDown': f.UserID == friend.UserID }" >
           <a href="#" class="clearfix">
             <img :src="f.Avatar" alt="" class="img-circle" @click="showMsg(f)">
@@ -82,6 +82,7 @@
 </template>
 
 <script>
+import _ from 'lodash'
 export default {
   name: 'chat',
   data () {
@@ -97,6 +98,11 @@ export default {
   },
   created: function () {
     this.initData()
+  },
+  computed: {
+    orderedFriends: function () {
+      return _.orderBy(this.friends, 'UserID')
+    }
   },
   methods: {
     initData () {
